@@ -31,10 +31,10 @@ nix build
 
 Build for a specific platform:
 ```
-nix build .#godot-win64
-nix build .#godot-linux64  
-nix build .#godot-macos
-nix build .#godot-macos-arm
+nix build .#godot.windows.x86_64
+nix build .#godot.linux.x86_64
+nix build .#godot.macos.x86_64
+nix build .#godot.macos.aarch64
 ```
 
 ## Project Structure

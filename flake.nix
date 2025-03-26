@@ -26,14 +26,22 @@
     build-godot = crossenv: import ./godot { inherit crossenv; };
   in {
     packages.${system} = {
-      # Cross-compile Godot for different platforms
-      godot-win64 = build-godot cr.crossenvs.x86_64-w64-mingw32;
-      godot-linux64 = build-godot cr.crossenvs.x86_64-linux-musl;
-      godot-macos = build-godot cr.crossenvs.x86_64-macos;
-      godot-macos-arm = build-godot cr.crossenvs.aarch64-macos;
+      # Structure as godot.<os>.<arch>
+      godot = {
+        windows = {
+          x86_64 = build-godot cr.crossenvs.x86_64-w64-mingw32;
+        };
+        linux = {
+          x86_64 = build-godot cr.crossenvs.x86_64-linux-musl;
+        };
+        macos = {
+          x86_64 = build-godot cr.crossenvs.x86_64-macos;
+          aarch64 = build-godot cr.crossenvs.aarch64-macos;
+        };
+      };
       
       # Set a default package (Linux x86_64)
-      default = self.packages.${system}.godot-linux64;
+      default = self.packages.${system}.godot.linux.x86_64;
     };
   };
 }

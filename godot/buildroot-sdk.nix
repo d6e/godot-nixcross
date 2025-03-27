@@ -38,8 +38,10 @@ let
         sha256 = sdk.sha256;
       };
       
-      # No need for special build dependencies
-      native_inputs = [];
+      # Add pkgconf as a native input for the wrapper script
+      native_inputs = with crossenv.nixpkgs; [
+        pkgconf
+      ];
       target_inputs = [];
       
       # Determine prefix based on architecture
@@ -62,11 +64,24 @@ let
         chmod +x relocate-sdk.sh
         ./relocate-sdk.sh
         
-        # Ensure pkgconf is available and executable
+        # Ensure pkgconf is available or create it
         if [ -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf ]; then
+          # Make existing pkgconf executable
           chmod +x "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf
         else
-          echo "Warning: pkgconf not found in SDK"
+          echo "Creating pkgconf in SDK..."
+          cat > "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" << EOF
+#!/bin/sh
+# Wrapper for pkgconf using the Nix-provided pkgconf
+$pkgconf/bin/pkgconf "\$@"
+EOF
+          chmod +x "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf"
+        fi
+        
+        # Ensure pkg-config is a symlink to pkgconf
+        if [ ! -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config" ]; then
+          echo "Creating pkg-config symlink to pkgconf..."
+          ln -sf "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config"
         fi
         
         # Create a wrapper script that sets up environment variables
@@ -82,21 +97,15 @@ let
         export LD="$sdk_prefix-ld"
         export GODOT_SDK_PATH="$out/$sdk_prefix"_sdk-buildroot""
         
-        # Create a symlink for pkg-config if it doesn't exist
-        if [ ! -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config ] && [ -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" ]; then
-          ln -sf "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config"
+        # Double-check pkgconf exists (the wrapper should have created it)
+        if [ ! -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" ]; then
+          echo "Error: pkgconf not found in the SDK. This should have been created earlier."
+          exit 1
         fi
         
-        # Also check if pkgconf exists and create it if needed
-        if [ ! -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" ]; then
-          cat > "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" << PKGCONF
-        #!/bin/sh
-        # Minimal pkgconf wrapper
-        echo ""
-        exit 0
-        PKGCONF
-          chmod +x "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf"
-          # Create pkg-config symlink
+        # Double-check pkg-config exists as a symlink to pkgconf
+        if [ ! -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config" ]; then
+          echo "Creating pkg-config symlink to pkgconf..."
           ln -sf "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config"
         fi
         EOF

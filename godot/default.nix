@@ -141,6 +141,5 @@ in crossenv.make_derivation rec {
   builder = buildScript;
   
   # Environment variables to pass to the build script
-  godot_version = godot_version;
-  inherit platform arch target optionsString scons;
+  inherit godot_version platform arch target optionsString scons;
 }

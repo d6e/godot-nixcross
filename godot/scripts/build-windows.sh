@@ -6,6 +6,7 @@ echo "Building Godot ${godot_version} for Windows (${arch})..."
 # Create build directory and copy source
 mkdir -p build
 cp -r $src/* build/
+chmod -R +w build/
 cd build
 
 # Set up cross-compilation environment variables for Windows

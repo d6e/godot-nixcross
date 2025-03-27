@@ -42,6 +42,13 @@
         macos = {
           x86_64 = build-godot cr.crossenvs.x86_64-macos;
           aarch64 = build-godot cr.crossenvs.aarch64-macos;
+          # Create a virtual target for universal macOS binaries
+          universal = 
+            let 
+              # Use aarch64 as base crossenv but override arch
+              crossenv = cr.crossenvs.aarch64-macos // { arch = "universal"; };
+            in
+              build-godot crossenv;
         };
         # Add Web platform support
         web = {
@@ -69,6 +76,7 @@
           # macOS
           macos.x86_64
           macos.aarch64
+          macos.universal
           # Web
           web.wasm32
         ];

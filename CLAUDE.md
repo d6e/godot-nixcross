@@ -12,6 +12,7 @@
 - `nix build .#godot.linux.arm32` - Build Linux ARM32
 - `nix build .#godot.macos.x86_64` - Build macOS x86_64
 - `nix build .#godot.macos.aarch64` - Build macOS ARM64
+- `nix build .#godot.macos.universal` - Build Universal macOS (combined x86_64 + ARM64)
 - `nix build .#godot.web.wasm32` - Build Web/WebAssembly
 
 ## Prerequisites
@@ -54,6 +55,7 @@ This project supports cross-compilation for:
 - macOS:
   * x86_64 (Intel)
   * aarch64 (Apple Silicon)
+  * universal (Combined Intel + Apple Silicon)
 - Web:
   * wasm32 (WebAssembly)
 

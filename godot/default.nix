@@ -6,8 +6,8 @@ let
     owner = "godotengine";
     repo = "godot";
     rev = "${godot_version}-stable";
-    # This is a placeholder hash that will need to be updated when 4.4-stable is released
-    # Nix will provide the correct hash when it first attempts to build
+    # We use this placeholder to get the right hash from the first build attempt
+    # You can also use nix-prefetch-url https://github.com/godotengine/godot/archive/4.4-stable.tar.gz
     sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
   };
 
@@ -25,9 +25,20 @@ let
         "progress=no"
       ];
       
+      # Updated Windows options based on official build containers
       windowsOptions = [
         "use_mingw=yes"
-      ] ++ (if arch == "arm64" then [ "use_llvm=yes" ] else []);
+        "d3d12=yes"
+      ] ++ (if arch == "arm64" then [ 
+        "use_llvm=yes" 
+       ] else []);
+      
+      # Linux options based on official build containers
+      linuxOptions = [
+        "use_static_cpp=yes"
+        "use_llvm=no"
+        "pulseaudio=no"  # Use Buildroot SDK instead of system libraries
+      ];
       
       macosOptions = [
         "osxcross_sdk=darwin15.2" # Use the SDK version available in nixcrpkgs
@@ -42,6 +53,7 @@ let
       # Select platform-specific options
       platformSpecificOptions = 
         if platform == "windows" then windowsOptions
+        else if platform == "linux" then linuxOptions
         else if platform == "macos" then macosOptions
         else if platform == "web" then webOptions
         else [];
@@ -83,8 +95,29 @@ let
   platformOptions = getPlatformOptions platform arch;
   optionsString = builtins.concatStringsSep " " (map (opt: "${opt}") platformOptions);
 
-  # Source the build script
-  buildScript = ./scripts/build-godot.sh;
+  # Source the appropriate build script based on platform
+  # This allows platform-specific build processes
+  buildScript = 
+    if platform == "linux" then ./scripts/build-linux.sh
+    else if platform == "windows" then ./scripts/build-windows.sh
+    else if platform == "macos" then ./scripts/build-macos.sh
+    else if platform == "web" then ./scripts/build-web.sh
+    else ./scripts/build-godot.sh;
+  
+  # Additional dependencies for Windows builds 
+  # Based on official Godot build container (Dockerfile.windows)
+  windowsDeps = with crossenv.nixpkgs; [
+    mingw32-w64
+    # Note: For arm64 Windows builds, LLVM-MinGW would be ideal
+    # but we'll rely on what's available in nixcrpkgs
+  ];
+  
+  # Additional dependencies for Linux builds
+  # Based on official Godot build container (Dockerfile.linux)
+  linuxDeps = with crossenv.nixpkgs; [
+    # We rely on the musl-cross toolchain from nixcrpkgs
+    # which already includes most of what we need
+  ];
 
 in crossenv.make_derivation rec {
   name = "godot-${godot_version}-${crossenv.host}";
@@ -95,7 +128,10 @@ in crossenv.make_derivation rec {
   native_inputs = [ python3 scons ];
 
   # Target-specific dependencies based on platform
-  target_inputs = [];
+  target_inputs = 
+    if platform == "windows" then windowsDeps
+    else if platform == "linux" then linuxDeps
+    else [];
 
   # Pass variables to the build script
   passAsFile = [];
@@ -112,6 +148,10 @@ in crossenv.make_derivation rec {
     export target="${target}"
     export optionsString="${optionsString}"
     export scons="${scons}"
+    
+    # Display build configuration
+    echo "Building Godot ${godot_version} for ${platform} (${arch})"
+    echo "Using build options: ${optionsString}"
     
     # Execute the build script
     bash ${buildScript}

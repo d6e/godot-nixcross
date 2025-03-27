@@ -96,27 +96,28 @@ let
   optionsString = builtins.concatStringsSep " " (map (opt: "${opt}") platformOptions);
 
   # Source the appropriate build script based on platform
-  # This allows platform-specific build processes
+  # Each platform has its own specialized build script
   buildScript = 
     if platform == "linux" then ./scripts/build-linux.sh
     else if platform == "windows" then ./scripts/build-windows.sh
     else if platform == "macos" then ./scripts/build-macos.sh
     else if platform == "web" then ./scripts/build-web.sh
-    else ./scripts/build-godot.sh;
+    else throw "Unsupported platform: ${platform}. Add a build script for this platform.";
   
   # Additional dependencies for Windows builds 
   # Based on official Godot build container (Dockerfile.windows)
-  windowsDeps = with crossenv.nixpkgs; [
-    mingw32-w64
-    # Note: For arm64 Windows builds, LLVM-MinGW would be ideal
-    # but we'll rely on what's available in nixcrpkgs
+  windowsDeps = [
+    # Using the mingw toolchain from nixcrpkgs instead of nixpkgs
+    # nixcrpkgs automatically provides the appropriate mingw toolchain
+    # based on the selected crossenv
+    # This is preferred over crossenv.nixpkgs.mingw32-w64
   ];
   
   # Additional dependencies for Linux builds
   # Based on official Godot build container (Dockerfile.linux)
-  linuxDeps = with crossenv.nixpkgs; [
-    # We rely on the musl-cross toolchain from nixcrpkgs
-    # which already includes most of what we need
+  linuxDeps = [
+    # The musl-cross toolchain from nixcrpkgs already includes
+    # all the necessary dependencies for building on Linux
   ];
 
 in crossenv.make_derivation rec {
@@ -149,11 +150,19 @@ in crossenv.make_derivation rec {
     export optionsString="${optionsString}"
     export scons="${scons}"
     
+    # Pass additional information about cross-compilation environment
+    # (Our build scripts will use these to properly set up cross-compilation)
+    export host=$host
+    export CFLAGS="$CFLAGS"
+    export CXXFLAGS="$CXXFLAGS"
+    export LDFLAGS="$LDFLAGS"
+    
     # Display build configuration
     echo "Building Godot ${godot_version} for ${platform} (${arch})"
     echo "Using build options: ${optionsString}"
+    echo "Using cross-compiler prefix: $host"
     
-    # Execute the build script
+    # Execute the platform-specific build script
     bash ${buildScript}
   '';
 }

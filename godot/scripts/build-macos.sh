@@ -8,6 +8,18 @@ mkdir -p build
 cp -r $src/* build/
 cd build
 
+# Set up cross-compilation environment variables for macOS
+export CC=$host-clang
+export CXX=$host-clang++
+export AR=$host-ar
+export STRIP=$host-strip
+export RANLIB=$host-ranlib
+export LD=$host-ld
+export CFLAGS=$CFLAGS
+export CXXFLAGS=$CXXFLAGS
+export LDFLAGS=$LDFLAGS
+export OSXCROSS_SDK=darwin15.2
+
 # Handle universal build specially
 if [ "${arch}" = "universal" ]; then
   echo "Creating universal macOS build combining x86_64 and arm64..."

@@ -8,6 +8,18 @@ mkdir -p build
 cp -r $src/* build/
 cd build
 
+# Set up cross-compilation environment variables for Windows
+export CC=$host-gcc
+export CXX=$host-g++
+export AR=$host-ar
+export STRIP=$host-strip
+export RANLIB=$host-ranlib
+export LD=$host-ld
+export WINDRES=$host-windres
+export CFLAGS=$CFLAGS
+export CXXFLAGS=$CXXFLAGS
+export LDFLAGS=$LDFLAGS
+
 # Configure template build command
 template_build_cmd="${scons}/bin/scons \
   platform=windows \

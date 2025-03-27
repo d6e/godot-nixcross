@@ -39,6 +39,8 @@ let
         "use_llvm=no"
         "pulseaudio=no"  # Use Buildroot SDK instead of system libraries
         "wayland=yes"    # Explicitly enable Wayland support
+        "production=yes" # Ensure production builds
+        "accesskit_sdk_path=" # We're not using AccessKit
       ];
       
       macosOptions = [
@@ -64,7 +66,9 @@ let
   # Determine the correct target
   getTarget = platform: 
     if platform == "windows" || platform == "web" then "template_release"
-    else "template_release"; # Godot 4.4 only accepts: editor, template_release, template_debug
+    else "template_release"; # Default to template_release
+  
+  # For Linux we build both debug and release templates + editor in the build script
 
   # Map OS to Godot's platform identifier
   getPlatformName = os:
@@ -137,7 +141,7 @@ in crossenv.make_derivation rec {
   src = godot_src;
   
   # Native build dependencies
-  native_inputs = [ python3 scons ];
+  native_inputs = [ python3 scons crossenv.nixpkgs.gcc ];
 
   # Target-specific dependencies based on platform
   target_inputs = 

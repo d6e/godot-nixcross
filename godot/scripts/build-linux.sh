@@ -10,15 +10,68 @@ cd build
 # Ensure we have write permissions in the build directory
 chmod -R +w .
 
-# Setup buildroot SDK environment
+# Set up basic build environment
 echo "Setting up buildroot SDK environment..."
-source $godot_buildroot_sdk/bin/setup-env.sh
 
-# Verify pkg-config and pkgconf
-echo "Testing pkg-config:"
-which pkg-config || echo "pkg-config not found in PATH"
-ls -la $GODOT_SDK_PATH/bin/pkg* || echo "No pkg* files found"
-echo "pkg-config version: $(pkg-config --version)"
+# The official Godot build script uses the native host compiler
+# rather than the cross-compiler from the Buildroot SDK
+export CC="gcc"
+export CXX="g++"
+
+# Determine the SDK prefix based on architecture
+if [ "${arch}" = "x86_64" ]; then
+  SDK_PREFIX="x86_64-godot-linux-gnu"
+elif [ "${arch}" = "x86_32" ]; then
+  SDK_PREFIX="i686-godot-linux-gnu"
+elif [ "${arch}" = "arm64" ]; then
+  SDK_PREFIX="aarch64-godot-linux-gnu"
+elif [ "${arch}" = "arm32" ]; then
+  SDK_PREFIX="arm-godot-linux-gnueabihf"
+else
+  echo "Error: Unknown architecture ${arch}"
+  exit 1
+fi
+
+# Set up Buildroot SDK paths
+export GODOT_SDK_PATH="$godot_buildroot_sdk/${SDK_PREFIX}_sdk-buildroot"
+
+# Add the SDK bin directory to PATH (like in the official build script)
+export PATH="$GODOT_SDK_PATH/bin:$PATH"
+
+# Add include and library paths from Buildroot
+export CFLAGS="-I$GODOT_SDK_PATH/include"
+export CXXFLAGS="-I$GODOT_SDK_PATH/include"
+export LDFLAGS="-L$GODOT_SDK_PATH/lib"
+
+# Set up pkg-config with the SDK
+export PKG_CONFIG_PATH="$GODOT_SDK_PATH/lib/pkgconfig:$PKG_CONFIG_PATH"
+export PKG_CONFIG_LIBDIR="$GODOT_SDK_PATH/lib/pkgconfig"
+export PKG_CONFIG_SYSROOT_DIR="$GODOT_SDK_PATH"
+
+# Use the SDK's pkg-config instead of system one
+export PKG_CONFIG="$GODOT_SDK_PATH/bin/pkg-config"
+
+# Make sure we're using SDK's pkg-config
+echo "Testing pkg-config setup:"
+echo "Using SDK pkg-config: $PKG_CONFIG"
+echo "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
+echo "PKG_CONFIG_LIBDIR: $PKG_CONFIG_LIBDIR"
+echo "PKG_CONFIG_SYSROOT_DIR: $PKG_CONFIG_SYSROOT_DIR"
+
+# Try running pkg-config to verify it works
+echo "Testing pkg-config functionality:"
+$PKG_CONFIG --version || echo "pkg-config is not working properly"
+
+# Verify pkg-config can find specific packages
+echo "Checking if pkg-config can find zlib:"
+$PKG_CONFIG --exists zlib && echo "zlib found" || echo "zlib not found via pkg-config"
+echo "Listing available packages:"
+ls -la $PKG_CONFIG_LIBDIR
+
+# Add fpermissive flag and remove LTO flag
+# Also cast between VkFormat and uint32_t should be allowed
+export CXXFLAGS="-fpermissive -fno-lto -Wno-enum-conversion"
+export CFLAGS="-fpermissive -fno-lto -Wno-enum-conversion"
 
 # Configure template build command with buildroot SDK environment
 template_build_cmd="${scons}/bin/scons \
@@ -29,30 +82,25 @@ template_build_cmd="${scons}/bin/scons \
   builtin_freetype=yes \
   builtin_libpng=yes \
   builtin_zlib=yes \
-  use_static_cpp=yes"
-
-# Build Godot template
-echo "Running: $template_build_cmd"
-echo "Using buildroot SDK from: $GODOT_SDK_PATH"
-echo "Using compiler: $(which $CC)"
-$template_build_cmd
+  use_static_cpp=yes \
+  use_mingw=no \
+  use_lto=no \
+  CC=gcc \
+  CXX=g++ \
+  AR=ar \
+  PKG_CONFIG=$PKG_CONFIG \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
+  PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
 
 # Create output directory structure
 mkdir -p $out/bin
 mkdir -p $out/templates/${arch}
+mkdir -p $out/templates-debug/${arch}
+mkdir -p $out/tools/${arch}
 
-# Copy binaries to output location - fail if binaries not found
-echo "Copying built binaries to output locations..."
-cp -v bin/godot.*.linuxbsd.* $out/templates/${arch}/
-cp -v bin/godot.*.linuxbsd.* $out/bin/
-# Also copy any shared libraries if they exist (optional)
-if ls bin/*.so* >/dev/null 2>&1; then
-  cp -v bin/*.so* $out/templates/${arch}/
-  cp -v bin/*.so* $out/bin/
-fi
-
-# If we're building for an architecture that can run the editor, build it
-if [ "${arch}" = "x86_64" ] || [ "${arch}" = "arm64" ]; then
+# If we're building for an architecture that can run the editor, build it first
+if [ "${arch}" = "x86_64" ] || [ "${arch}" = "arm64" ] || [ "${arch}" = "x86_32" ] || [ "${arch}" = "arm32" ]; then
   # Build editor version with buildroot SDK environment
   editor_build_cmd="${scons}/bin/scons \
     platform=linuxbsd \
@@ -62,29 +110,89 @@ if [ "${arch}" = "x86_64" ] || [ "${arch}" = "arm64" ]; then
     builtin_freetype=yes \
     builtin_libpng=yes \
     builtin_zlib=yes \
-    use_static_cpp=yes"
+    use_static_cpp=yes \
+    use_mingw=no \
+    use_lto=no \
+    CC=gcc \
+    CXX=g++ \
+    AR=ar \
+    PKG_CONFIG=$PKG_CONFIG \
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+    PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
+    PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
   
   echo "Running: $editor_build_cmd"
   echo "Using buildroot SDK from: $GODOT_SDK_PATH"
+  echo "Using compiler: $(which $CC)"
   $editor_build_cmd
   
   # Copy editor binaries - fail if not found
-  cp -v bin/*editor* $out/bin/
+  cp -v bin/* $out/tools/${arch}/
   
-  # Copy additional dependencies (optional)
-  if ls bin/*.so* >/dev/null 2>&1; then
-    cp -v bin/*.so* $out/bin/
-  fi
-  
-  # ARM-specific handling
-  if [ "${arch}" = "arm64" ] || [ "${arch}" = "arm32" ]; then
-    echo "Copying additional files for Linux ${arch} build..."
-    # Copy any architecture-specific files (optional)
-    if ls bin/*.so.* >/dev/null 2>&1; then
-      cp -v bin/*.so.* $out/bin/
-    fi
-  fi
+  # Clean up before next build
+  rm -rf bin
 fi
+
+# Build debug template
+debug_build_cmd="${scons}/bin/scons \
+  platform=linuxbsd \
+  arch=${arch} \
+  target=template_debug \
+  ${optionsString} \
+  builtin_freetype=yes \
+  builtin_libpng=yes \
+  builtin_zlib=yes \
+  use_static_cpp=yes \
+  use_mingw=no \
+  use_lto=no \
+  CC=gcc \
+  CXX=g++ \
+  AR=ar \
+  PKG_CONFIG=$PKG_CONFIG \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
+  PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
+
+echo "Running debug template build: $debug_build_cmd"
+echo "Using buildroot SDK from: $GODOT_SDK_PATH"
+$debug_build_cmd
+
+# Copy debug template binaries
+cp -v bin/* $out/templates-debug/${arch}/
+
+# Clean up before next build
+rm -rf bin
+
+# Build release template 
+release_build_cmd="${scons}/bin/scons \
+  platform=linuxbsd \
+  arch=${arch} \
+  target=template_release \
+  ${optionsString} \
+  builtin_freetype=yes \
+  builtin_libpng=yes \
+  builtin_zlib=yes \
+  use_static_cpp=yes \
+  use_mingw=no \
+  use_lto=no \
+  CC=gcc \
+  CXX=g++ \
+  AR=ar \
+  PKG_CONFIG=$PKG_CONFIG \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
+  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
+  PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
+
+echo "Running release template build: $release_build_cmd"
+echo "Using buildroot SDK from: $GODOT_SDK_PATH"
+$release_build_cmd
+
+# Copy release template binaries
+cp -v bin/* $out/templates/${arch}/
+
+# Copy binaries to bin directory for easy access
+mkdir -p $out/bin/${arch}
+cp -v bin/godot.*.linuxbsd.* $out/bin/${arch}/
 
 # Print summary of build
 echo "Build completed for Linux (${arch})"

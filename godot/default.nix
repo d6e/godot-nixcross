@@ -114,16 +114,21 @@ let
     # This is preferred over crossenv.nixpkgs.mingw32-w64
   ];
   
+  # Import Buildroot SDK derivation
+  buildroot_sdk = import ./buildroot-sdk.nix { 
+    inherit crossenv;
+    inherit (crossenv.nixpkgs) fetchurl;
+  };
+  
   # Additional dependencies for Linux builds
   # Based on official Godot build container (Dockerfile.linux)
   linuxDeps = [
-    # The musl-cross toolchain from nixcrpkgs already includes
-    # most necessary dependencies for building on Linux
+    # Wayland support
     crossenv.nixpkgs.wayland.scanner
     crossenv.nixpkgs.wayland-protocols
-    # Include additional dependencies to help with linking
-    (crossenv.nixpkgs.stdenv.cc.libcxx or crossenv.nixpkgs.stdenv.cc.cc.lib)
-    crossenv.nixpkgs.musl
+    # Standard build tools
+    crossenv.nixpkgs.bzip2
+    crossenv.nixpkgs.xz
   ];
 
 in crossenv.make_derivation rec {
@@ -148,4 +153,10 @@ in crossenv.make_derivation rec {
   
   # Environment variables to pass to the build script
   inherit godot_version platform arch target optionsString scons;
+  
+  # Pass buildroot SDK for Linux builds
+  godot_buildroot_sdk = 
+    if platform == "linuxbsd" then
+      buildroot_sdk.${arch}
+    else null;
 }

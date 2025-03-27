@@ -10,23 +10,11 @@ cd build
 # Ensure we have write permissions in the build directory
 chmod -R +w .
 
-# Set up cross-compilation environment variables
-export CC=$host-gcc
-export CXX=$host-g++
-export AR=$host-ar
-export STRIP=$host-strip
-export RANLIB=$host-ranlib
-export LD=$host-ld
+# Setup buildroot SDK environment
+echo "Setting up buildroot SDK environment..."
+source $godot_buildroot_sdk/bin/setup-env.sh
 
-# Create symlinks for gcc-ar and other toolchain variants
-mkdir -p $TMPDIR/bin
-ln -sf $(which $host-ar) $TMPDIR/bin/gcc-ar
-ln -sf $(which $host-ranlib) $TMPDIR/bin/gcc-ranlib
-ln -sf $(which $host-gcc) $TMPDIR/bin/gcc
-ln -sf $(which $host-g++) $TMPDIR/bin/g++
-export PATH=$TMPDIR/bin:$PATH
-
-# Configure template build command
+# Configure template build command with buildroot SDK environment
 template_build_cmd="${scons}/bin/scons \
   platform=linuxbsd \
   arch=${arch} \
@@ -34,45 +22,61 @@ template_build_cmd="${scons}/bin/scons \
   ${optionsString} \
   builtin_freetype=yes \
   builtin_libpng=yes \
-  builtin_zlib=yes"
+  builtin_zlib=yes \
+  use_static_cpp=yes"
 
 # Build Godot template
 echo "Running: $template_build_cmd"
+echo "Using buildroot SDK from: $GODOT_SDK_PATH"
+echo "Using compiler: $(which $CC)"
 $template_build_cmd
 
 # Create output directory structure
 mkdir -p $out/bin
 mkdir -p $out/templates/${arch}
 
-# Copy binaries to output location
+# Copy binaries to output location - fail if binaries not found
+echo "Copying built binaries to output locations..."
 cp -v bin/godot.*.linuxbsd.* $out/templates/${arch}/
 cp -v bin/godot.*.linuxbsd.* $out/bin/
-# Also copy any shared libraries if they exist
-cp -v bin/*.so* $out/templates/${arch}/ || true
-cp -v bin/*.so* $out/bin/ || true
+# Also copy any shared libraries if they exist (optional)
+if ls bin/*.so* >/dev/null 2>&1; then
+  cp -v bin/*.so* $out/templates/${arch}/
+  cp -v bin/*.so* $out/bin/
+fi
 
 # If we're building for an architecture that can run the editor, build it
 if [ "${arch}" = "x86_64" ] || [ "${arch}" = "arm64" ]; then
-  # Build editor version
+  # Build editor version with buildroot SDK environment
   editor_build_cmd="${scons}/bin/scons \
     platform=linuxbsd \
     arch=${arch} \
     target=editor \
-    ${optionsString}"
+    ${optionsString} \
+    builtin_freetype=yes \
+    builtin_libpng=yes \
+    builtin_zlib=yes \
+    use_static_cpp=yes"
   
   echo "Running: $editor_build_cmd"
+  echo "Using buildroot SDK from: $GODOT_SDK_PATH"
   $editor_build_cmd
   
-  # Copy editor binaries
+  # Copy editor binaries - fail if not found
   cp -v bin/*editor* $out/bin/
-  # Copy additional dependencies
-  cp -v bin/*.so* $out/bin/ || true
+  
+  # Copy additional dependencies (optional)
+  if ls bin/*.so* >/dev/null 2>&1; then
+    cp -v bin/*.so* $out/bin/
+  fi
   
   # ARM-specific handling
   if [ "${arch}" = "arm64" ] || [ "${arch}" = "arm32" ]; then
     echo "Copying additional files for Linux ${arch} build..."
-    # Copy any architecture-specific files
-    cp -v bin/*.so.* $out/bin/ || true
+    # Copy any architecture-specific files (optional)
+    if ls bin/*.so.* >/dev/null 2>&1; then
+      cp -v bin/*.so.* $out/bin/
+    fi
   fi
 fi
 

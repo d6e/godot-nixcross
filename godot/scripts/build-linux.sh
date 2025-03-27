@@ -7,6 +7,8 @@ echo "Building Godot ${godot_version} for Linux (${arch})..."
 mkdir -p build
 cp -r $src/* build/
 cd build
+# Ensure we have write permissions in the build directory
+chmod -R +w .
 
 # Set up cross-compilation environment variables
 export CC=$host-gcc

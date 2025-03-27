@@ -137,31 +137,10 @@ in crossenv.make_derivation rec {
   # Pass variables to the build script
   passAsFile = [];
   
-  # Use the external build script
-  builder = crossenv.nixpkgs.writeScript "godot-builder.sh" ''
-    #!/bin/sh
-    source $setup
-    
-    # Export variables needed by the build script
-    export godot_version="${toString godot_version}"
-    export platform="${toString platform}"
-    export arch="${toString arch}"
-    export target="${toString target}"
-    export optionsString="${toString optionsString}"
-    export scons="${toString scons}"
-    
-    # Pass additional information about cross-compilation environment
-    export host=$host
-    export CFLAGS="$CFLAGS"
-    export CXXFLAGS="$CXXFLAGS"
-    export LDFLAGS="$LDFLAGS"
-    
-    # Display build configuration
-    echo "Building Godot ''${godot_version} for ''${platform} (''${arch})"
-    echo "Using build options: ''${optionsString}"
-    echo "Using cross-compiler prefix: $host"
-    
-    # Execute the platform-specific build script
-    bash ${toString buildScript}
-  '';
+  # Use the platform-specific build script directly
+  builder = buildScript;
+  
+  # Environment variables to pass to the build script
+  godot_version = godot_version;
+  inherit platform arch target optionsString scons;
 }

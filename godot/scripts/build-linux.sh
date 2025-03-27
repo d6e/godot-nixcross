@@ -10,13 +10,34 @@ cd build
 # Ensure we have write permissions in the build directory
 chmod -R +w .
 
+# We don't need to patch the source code
+# Instead, we'll set the CFLAGS for SCons to handle type conversions
+# by adding a custom flag export
+
+# Export extra flags to handle type conversion issues
+export GODOT_EXTRA_CFLAGS="-fpermissive -Wno-enum-conversion"
+
 # Set up basic build environment
 echo "Setting up buildroot SDK environment..."
 
-# The official Godot build script uses the native host compiler
-# rather than the cross-compiler from the Buildroot SDK
-export CC="gcc"
-export CXX="g++"
+# Switch to using the cross-compiler from the Buildroot SDK
+# instead of the native host compiler
+if [ "${arch}" = "x86_64" ]; then
+  export CC="x86_64-godot-linux-gnu-gcc"
+  export CXX="x86_64-godot-linux-gnu-g++"
+elif [ "${arch}" = "x86_32" ]; then
+  export CC="i686-godot-linux-gnu-gcc"
+  export CXX="i686-godot-linux-gnu-g++"
+elif [ "${arch}" = "arm64" ]; then
+  export CC="aarch64-godot-linux-gnu-gcc"
+  export CXX="aarch64-godot-linux-gnu-g++"
+elif [ "${arch}" = "arm32" ]; then
+  export CC="arm-godot-linux-gnueabihf-gcc"
+  export CXX="arm-godot-linux-gnueabihf-g++"
+else
+  echo "Error: Unknown architecture ${arch}"
+  exit 1
+fi
 
 # Determine the SDK prefix based on architecture
 if [ "${arch}" = "x86_64" ]; then
@@ -73,6 +94,9 @@ ls -la $PKG_CONFIG_LIBDIR
 export CXXFLAGS="-fpermissive -fno-lto -Wno-enum-conversion"
 export CFLAGS="-fpermissive -fno-lto -Wno-enum-conversion"
 
+# Pass these flags to SCons
+echo "Adding extra flags to handle type conversion issues"
+
 # Configure template build command with buildroot SDK environment
 template_build_cmd="${scons}/bin/scons \
   platform=linuxbsd \
@@ -85,9 +109,9 @@ template_build_cmd="${scons}/bin/scons \
   use_static_cpp=yes \
   use_mingw=no \
   use_lto=no \
-  CC=gcc \
-  CXX=g++ \
-  AR=ar \
+  CC=$CC \
+  CXX=$CXX \
+  AR=${SDK_PREFIX}-ar \
   PKG_CONFIG=$PKG_CONFIG \
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
   PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
@@ -113,9 +137,9 @@ if [ "${arch}" = "x86_64" ] || [ "${arch}" = "arm64" ] || [ "${arch}" = "x86_32"
     use_static_cpp=yes \
     use_mingw=no \
     use_lto=no \
-    CC=gcc \
-    CXX=g++ \
-    AR=ar \
+    CC=$CC \
+    CXX=$CXX \
+    AR=${SDK_PREFIX}-ar \
     PKG_CONFIG=$PKG_CONFIG \
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
     PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
@@ -145,9 +169,9 @@ debug_build_cmd="${scons}/bin/scons \
   use_static_cpp=yes \
   use_mingw=no \
   use_lto=no \
-  CC=gcc \
-  CXX=g++ \
-  AR=ar \
+  CC=$CC \
+  CXX=$CXX \
+  AR=${SDK_PREFIX}-ar \
   PKG_CONFIG=$PKG_CONFIG \
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
   PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
@@ -175,9 +199,9 @@ release_build_cmd="${scons}/bin/scons \
   use_static_cpp=yes \
   use_mingw=no \
   use_lto=no \
-  CC=gcc \
-  CXX=g++ \
-  AR=ar \
+  CC=$CC \
+  CXX=$CXX \
+  AR=${SDK_PREFIX}-ar \
   PKG_CONFIG=$PKG_CONFIG \
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
   PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \

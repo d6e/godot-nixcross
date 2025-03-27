@@ -28,7 +28,7 @@ let
       # Updated Windows options based on official build containers
       windowsOptions = [
         "use_mingw=yes"
-        "d3d12=yes"
+#        "d3d12=yes" // TODO: Add this later
       ] ++ (if arch == "arm64" then [ 
         "use_llvm=yes" 
        ] else []);

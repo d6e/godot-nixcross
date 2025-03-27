@@ -121,6 +121,9 @@ let
     # most necessary dependencies for building on Linux
     crossenv.nixpkgs.wayland.scanner
     crossenv.nixpkgs.wayland-protocols
+    # Include additional dependencies to help with linking
+    (crossenv.nixpkgs.stdenv.cc.libcxx or crossenv.nixpkgs.stdenv.cc.cc.lib)
+    crossenv.nixpkgs.musl
   ];
 
 in crossenv.make_derivation rec {

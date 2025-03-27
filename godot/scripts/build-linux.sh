@@ -31,7 +31,10 @@ template_build_cmd="${scons}/bin/scons \
   platform=linuxbsd \
   arch=${arch} \
   target=${target} \
-  ${optionsString}"
+  ${optionsString} \
+  builtin_freetype=yes \
+  builtin_libpng=yes \
+  builtin_zlib=yes"
 
 # Build Godot template
 echo "Running: $template_build_cmd"

@@ -63,7 +63,7 @@ let
   # Determine the correct target
   getTarget = platform: 
     if platform == "windows" || platform == "web" then "template_release"
-    else "release";
+    else "template_release"; # Godot 4.4 only accepts: editor, template_release, template_debug
 
   # Map OS to Godot's platform identifier
   getPlatformName = os:

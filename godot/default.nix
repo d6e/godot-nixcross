@@ -38,6 +38,7 @@ let
         "use_static_cpp=yes"
         "use_llvm=no"
         "pulseaudio=no"  # Use Buildroot SDK instead of system libraries
+        "wayland=yes"    # Explicitly enable Wayland support
       ];
       
       macosOptions = [
@@ -117,7 +118,9 @@ let
   # Based on official Godot build container (Dockerfile.linux)
   linuxDeps = [
     # The musl-cross toolchain from nixcrpkgs already includes
-    # all the necessary dependencies for building on Linux
+    # most necessary dependencies for building on Linux
+    crossenv.nixpkgs.wayland.scanner
+    crossenv.nixpkgs.wayland-protocols
   ];
 
 in crossenv.make_derivation rec {

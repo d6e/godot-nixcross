@@ -3,3 +3,4 @@ result-*
 MacOSX*.sdk.tar.xz
 build-containers
 godot-build-scripts
+.mcp.json

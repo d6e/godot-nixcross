@@ -54,11 +54,11 @@ let
         mkdir -p $out
         
         # Extract the SDK
-        echo "Extracting buildroot SDK for ${sdk_prefix}..."
+        echo "Extracting buildroot SDK for $sdk_prefix..."
         tar xf $src -C $out
         
         # Run the relocate script to fix paths
-        cd $out/${sdk_prefix}_sdk-buildroot
+        cd $out/$sdk_prefix"_sdk-buildroot"
         chmod +x relocate-sdk.sh
         ./relocate-sdk.sh
         
@@ -66,14 +66,14 @@ let
         mkdir -p $out/bin
         cat > $out/bin/setup-env.sh << EOF
         #!/bin/sh
-        export PATH="$out/${sdk_prefix}_sdk-buildroot/bin:\$PATH"
-        export CC="${sdk_prefix}-gcc"
-        export CXX="${sdk_prefix}-g++"
-        export AR="${sdk_prefix}-ar"
-        export STRIP="${sdk_prefix}-strip"
-        export RANLIB="${sdk_prefix}-ranlib"
-        export LD="${sdk_prefix}-ld"
-        export GODOT_SDK_PATH="$out/${sdk_prefix}_sdk-buildroot"
+        export PATH="$out/$sdk_prefix"_sdk-buildroot/bin":\$PATH"
+        export CC="$sdk_prefix-gcc"
+        export CXX="$sdk_prefix-g++"
+        export AR="$sdk_prefix-ar"
+        export STRIP="$sdk_prefix-strip"
+        export RANLIB="$sdk_prefix-ranlib" 
+        export LD="$sdk_prefix-ld"
+        export GODOT_SDK_PATH="$out/$sdk_prefix"_sdk-buildroot""
         EOF
         
         chmod +x $out/bin/setup-env.sh

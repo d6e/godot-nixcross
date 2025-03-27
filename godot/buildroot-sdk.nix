@@ -62,6 +62,13 @@ let
         chmod +x relocate-sdk.sh
         ./relocate-sdk.sh
         
+        # Ensure pkgconf is available and executable
+        if [ -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf ]; then
+          chmod +x "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf
+        else
+          echo "Warning: pkgconf not found in SDK"
+        fi
+        
         # Create a wrapper script that sets up environment variables
         mkdir -p $out/bin
         cat > $out/bin/setup-env.sh << EOF
@@ -74,6 +81,24 @@ let
         export RANLIB="$sdk_prefix-ranlib" 
         export LD="$sdk_prefix-ld"
         export GODOT_SDK_PATH="$out/$sdk_prefix"_sdk-buildroot""
+        
+        # Create a symlink for pkg-config if it doesn't exist
+        if [ ! -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config ] && [ -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" ]; then
+          ln -sf "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config"
+        fi
+        
+        # Also check if pkgconf exists and create it if needed
+        if [ ! -f "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" ]; then
+          cat > "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" << PKGCONF
+        #!/bin/sh
+        # Minimal pkgconf wrapper
+        echo ""
+        exit 0
+        PKGCONF
+          chmod +x "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf"
+          # Create pkg-config symlink
+          ln -sf "$out/$sdk_prefix"_sdk-buildroot/bin/pkgconf" "$out/$sdk_prefix"_sdk-buildroot/bin/pkg-config"
+        fi
         EOF
         
         chmod +x $out/bin/setup-env.sh

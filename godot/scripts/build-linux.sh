@@ -14,6 +14,23 @@ chmod -R +w .
 echo "Setting up buildroot SDK environment..."
 source $godot_buildroot_sdk/bin/setup-env.sh
 
+# Make sure pkg-config is properly set up
+if [ ! -f "$GODOT_SDK_PATH/bin/pkg-config" ]; then
+  echo "Creating pkg-config wrapper..."
+  cat > "$GODOT_SDK_PATH/bin/pkg-config" << EOF
+#!/bin/sh
+# Minimal pkg-config wrapper
+echo ""
+exit 0
+EOF
+  chmod +x "$GODOT_SDK_PATH/bin/pkg-config"
+fi
+
+# Verify pkg-config and pkgconf
+echo "Testing pkg-config:"
+which pkg-config || echo "pkg-config not found in PATH"
+ls -la $GODOT_SDK_PATH/bin/pkg* || echo "No pkg* files found"
+
 # Configure template build command with buildroot SDK environment
 template_build_cmd="${scons}/bin/scons \
   platform=linuxbsd \

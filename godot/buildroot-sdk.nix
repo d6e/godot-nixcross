@@ -38,12 +38,10 @@ let
         sha256 = sdk.sha256;
       };
       
-      # Add pkgconf, file, patchelf as native inputs for the wrapper script
+      # Add file and patchelf as native inputs for the wrapper script
       native_inputs = with crossenv.nixpkgs; [
-        pkgconf
         file
         patchelf
-        glibc
       ];
       target_inputs = [];
       

@@ -8,7 +8,7 @@ let
     rev = "${godot_version}-stable";
     # We use this placeholder to get the right hash from the first build attempt
     # You can also use nix-prefetch-url https://github.com/godotengine/godot/archive/4.4-stable.tar.gz
-    sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    sha256 = "sha256-net4F3qgxAP0TIEuecwuf/ltYF0d33f2fpfpsc3UQdE="
   };
 
   # Native build dependencies

@@ -68,7 +68,7 @@ let
   # Map OS to Godot's platform identifier
   getPlatformName = os:
     if os == "macos" then "macos"
-    else if os == "linux" then "linuxbsd"
+    else if os == "linux" then "linuxbsd" # Godot uses "linuxbsd" as its platform identifier
     else if os == "windows" then "windows"
     else if os == "emscripten" then "web"
     else throw "Unsupported OS for Godot: ${os}";
@@ -98,7 +98,7 @@ let
   # Source the appropriate build script based on platform
   # Each platform has its own specialized build script
   buildScript = 
-    if platform == "linux" then ./scripts/build-linux.sh
+    if platform == "linuxbsd" then ./scripts/build-linux.sh
     else if platform == "windows" then ./scripts/build-windows.sh
     else if platform == "macos" then ./scripts/build-macos.sh
     else if platform == "web" then ./scripts/build-web.sh

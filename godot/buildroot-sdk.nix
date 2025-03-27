@@ -7,22 +7,22 @@ let
   sdks = {
     x86_64 = {
       url = "https://github.com/godotengine/buildroot/releases/download/${buildroot_version}/x86_64-godot-linux-gnu_sdk-buildroot.tar.bz2";
-      sha256 = "sha256-bAf8QQ03wMDygfN9e5VyJiOahE5C9bUZjIJjqWj9mVo=";
+      sha256 = "sha256-Ij+q4l/xLjDFYhpbdvWVhMEqgKvqZgDfvO22dVsb3NE=";
       prefix = "x86_64-godot-linux-gnu";
     };
     x86_32 = {
       url = "https://github.com/godotengine/buildroot/releases/download/${buildroot_version}/i686-godot-linux-gnu_sdk-buildroot.tar.bz2";
-      sha256 = "sha256-JI7H0J4zxRXSNwkSS+LXlWZp5wQxH06ZVUYRzGjEKRw=";
+      sha256 = "sha256-cXj5dlNaBuHlEJYRe4dfZxUeKBbdGibq66F6lYTMOSA=";
       prefix = "i686-godot-linux-gnu";
     };
     arm64 = {
       url = "https://github.com/godotengine/buildroot/releases/download/${buildroot_version}/aarch64-godot-linux-gnu_sdk-buildroot.tar.bz2";
-      sha256 = "sha256-Bl/7NnrfayDv/mFRmMkGfYMF3b+2ZoBYXq13rw+E+Ss=";
+      sha256 = "sha256-S9LMKKGEr5v4YvOu1M1n3sCpQ9PJt4SqFOmdMYCpdN8=";
       prefix = "aarch64-godot-linux-gnu";
     };
     arm32 = {
       url = "https://github.com/godotengine/buildroot/releases/download/${buildroot_version}/arm-godot-linux-gnueabihf_sdk-buildroot.tar.bz2";
-      sha256 = "sha256-nxKvvb1rJrEwnuYdkE5ekBM9H68kbFJC+iQB5EKOSXk=";
+      sha256 = "sha256-Bp/1GDIu99hFM4Q8T49jq4RDsaJCZLJPMOSPz1K1L00=";
       prefix = "arm-godot-linux-gnueabihf";
     };
   };

@@ -143,26 +143,25 @@ in crossenv.make_derivation rec {
     source $setup
     
     # Export variables needed by the build script
-    export godot_version="${godot_version}"
-    export platform="${platform}"
-    export arch="${arch}"
-    export target="${target}"
-    export optionsString="${optionsString}"
-    export scons="${scons}"
+    export godot_version="${toString godot_version}"
+    export platform="${toString platform}"
+    export arch="${toString arch}"
+    export target="${toString target}"
+    export optionsString="${toString optionsString}"
+    export scons="${toString scons}"
     
     # Pass additional information about cross-compilation environment
-    # (Our build scripts will use these to properly set up cross-compilation)
     export host=$host
     export CFLAGS="$CFLAGS"
     export CXXFLAGS="$CXXFLAGS"
     export LDFLAGS="$LDFLAGS"
     
     # Display build configuration
-    echo "Building Godot ${godot_version} for ${platform} (${arch})"
-    echo "Using build options: ${optionsString}"
+    echo "Building Godot ''${godot_version} for ''${platform} (''${arch})"
+    echo "Using build options: ''${optionsString}"
     echo "Using cross-compiler prefix: $host"
     
     # Execute the platform-specific build script
-    bash ${buildScript}
+    bash ${toString buildScript}
   '';
 }

@@ -18,6 +18,13 @@ export STRIP=$host-strip
 export RANLIB=$host-ranlib
 export LD=$host-ld
 
+# Create symlinks for gcc-ar and other toolchain variants
+mkdir -p $TMPDIR/bin
+ln -sf $(which $host-ar) $TMPDIR/bin/gcc-ar
+ln -sf $(which $host-gcc) $TMPDIR/bin/gcc
+ln -sf $(which $host-g++) $TMPDIR/bin/g++
+export PATH=$TMPDIR/bin:$PATH
+
 # Configure template build command
 template_build_cmd="${scons}/bin/scons \
   platform=linuxbsd \

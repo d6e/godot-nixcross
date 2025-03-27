@@ -17,9 +17,6 @@ export CC=$host-emcc
 export CXX=$host-em++
 export AR=$host-emar
 export RANLIB=$host-emranlib
-export CFLAGS=$CFLAGS
-export CXXFLAGS=$CXXFLAGS
-export LDFLAGS=$LDFLAGS
 
 # Configure template build command
 template_build_cmd="${scons}/bin/scons \

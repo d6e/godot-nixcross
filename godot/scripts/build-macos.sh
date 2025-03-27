@@ -15,9 +15,6 @@ export AR=$host-ar
 export STRIP=$host-strip
 export RANLIB=$host-ranlib
 export LD=$host-ld
-export CFLAGS=$CFLAGS
-export CXXFLAGS=$CXXFLAGS
-export LDFLAGS=$LDFLAGS
 export OSXCROSS_SDK=darwin15.2
 
 # Handle universal build specially

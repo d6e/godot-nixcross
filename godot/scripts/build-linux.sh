@@ -10,35 +10,6 @@ cd build
 # Ensure we have write permissions in the build directory
 chmod -R +w .
 
-# We don't need to patch the source code
-# Instead, we'll set the CFLAGS for SCons to handle type conversions
-# by adding a custom flag export
-
-# Export extra flags to handle type conversion issues
-export GODOT_EXTRA_CFLAGS="-fpermissive -Wno-enum-conversion"
-
-# Set up basic build environment
-echo "Setting up buildroot SDK environment..."
-
-# Switch to using the cross-compiler from the Buildroot SDK
-# instead of the native host compiler
-if [ "${arch}" = "x86_64" ]; then
-  export CC="x86_64-godot-linux-gnu-gcc"
-  export CXX="x86_64-godot-linux-gnu-g++"
-elif [ "${arch}" = "x86_32" ]; then
-  export CC="i686-godot-linux-gnu-gcc"
-  export CXX="i686-godot-linux-gnu-g++"
-elif [ "${arch}" = "arm64" ]; then
-  export CC="aarch64-godot-linux-gnu-gcc"
-  export CXX="aarch64-godot-linux-gnu-g++"
-elif [ "${arch}" = "arm32" ]; then
-  export CC="arm-godot-linux-gnueabihf-gcc"
-  export CXX="arm-godot-linux-gnueabihf-g++"
-else
-  echo "Error: Unknown architecture ${arch}"
-  exit 1
-fi
-
 # Determine the SDK prefix based on architecture
 if [ "${arch}" = "x86_64" ]; then
   SDK_PREFIX="x86_64-godot-linux-gnu"
@@ -54,68 +25,47 @@ else
 fi
 
 # Set up Buildroot SDK paths
-export GODOT_SDK_PATH="$godot_buildroot_sdk/${SDK_PREFIX}_sdk-buildroot"
+GODOT_SDK_PATH="$godot_buildroot_sdk/${SDK_PREFIX}_sdk-buildroot"
+echo "Using Buildroot SDK from: $GODOT_SDK_PATH"
 
-# Add the SDK bin directory to PATH (like in the official build script)
+# The Buildroot SDK should be properly set up by the buildroot-sdk.nix derivation
+# Store the original PATH to restore it later if needed
+export BASE_PATH=$PATH
+
+# Add the SDK bin directory to PATH (following the official build containers approach)
 export PATH="$GODOT_SDK_PATH/bin:$PATH"
 
-# Add include and library paths from Buildroot
-export CFLAGS="-I$GODOT_SDK_PATH/include"
-export CXXFLAGS="-I$GODOT_SDK_PATH/include"
-export LDFLAGS="-L$GODOT_SDK_PATH/lib"
+# Set up environment variables for the build
+echo "Setting up environment for Buildroot SDK..."
 
-# Set up pkg-config with the SDK
-export PKG_CONFIG_PATH="$GODOT_SDK_PATH/lib/pkgconfig:$PKG_CONFIG_PATH"
+# Set compiler environment variables
+export CC="${SDK_PREFIX}-gcc"
+export CXX="${SDK_PREFIX}-g++"
+export AR="${SDK_PREFIX}-ar"
+export LD="${SDK_PREFIX}-ld"
+export STRIP="${SDK_PREFIX}-strip"
+export RANLIB="${SDK_PREFIX}-ranlib"
+
+# Set pkg-config environment variables
+export PKG_CONFIG="$GODOT_SDK_PATH/bin/pkg-config"
+export PKG_CONFIG_PATH="$GODOT_SDK_PATH/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$GODOT_SDK_PATH/lib/pkgconfig"
 export PKG_CONFIG_SYSROOT_DIR="$GODOT_SDK_PATH"
 
-# Use the SDK's pkg-config instead of system one
-export PKG_CONFIG="$GODOT_SDK_PATH/bin/pkg-config"
+# Set compiler flags
+export CFLAGS="-I$GODOT_SDK_PATH/include -fpermissive -Wno-enum-conversion"
+export CXXFLAGS="-I$GODOT_SDK_PATH/include -fpermissive -Wno-enum-conversion"
+export LDFLAGS="-L$GODOT_SDK_PATH/lib"
 
-# Make sure we're using SDK's pkg-config
-echo "Testing pkg-config setup:"
-echo "Using SDK pkg-config: $PKG_CONFIG"
-echo "PKG_CONFIG_PATH: $PKG_CONFIG_PATH"
-echo "PKG_CONFIG_LIBDIR: $PKG_CONFIG_LIBDIR"
-echo "PKG_CONFIG_SYSROOT_DIR: $PKG_CONFIG_SYSROOT_DIR"
+# Verify that everything is set up correctly
+echo "Verifying Buildroot SDK setup:"
+echo "SDK path: $GODOT_SDK_PATH"
+echo "C compiler: $(which $CC)"
+echo "C++ compiler: $(which $CXX)"
+echo "pkg-config: $(which $PKG_CONFIG)"
 
-# Try running pkg-config to verify it works
-echo "Testing pkg-config functionality:"
-$PKG_CONFIG --version || echo "pkg-config is not working properly"
-
-# Verify pkg-config can find specific packages
-echo "Checking if pkg-config can find zlib:"
-$PKG_CONFIG --exists zlib && echo "zlib found" || echo "zlib not found via pkg-config"
-echo "Listing available packages:"
-ls -la $PKG_CONFIG_LIBDIR
-
-# Add fpermissive flag and remove LTO flag
-# Also cast between VkFormat and uint32_t should be allowed
-export CXXFLAGS="-fpermissive -fno-lto -Wno-enum-conversion"
-export CFLAGS="-fpermissive -fno-lto -Wno-enum-conversion"
-
-# Pass these flags to SCons
-echo "Adding extra flags to handle type conversion issues"
-
-# Configure template build command with buildroot SDK environment
-template_build_cmd="${scons}/bin/scons \
-  platform=linuxbsd \
-  arch=${arch} \
-  target=${target} \
-  ${optionsString} \
-  builtin_freetype=yes \
-  builtin_libpng=yes \
-  builtin_zlib=yes \
-  use_static_cpp=yes \
-  use_mingw=no \
-  use_lto=no \
-  CC=$CC \
-  CXX=$CXX \
-  AR=${SDK_PREFIX}-ar \
-  PKG_CONFIG=$PKG_CONFIG \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
-  PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
+# Test pkg-config
+$PKG_CONFIG --version || echo "Warning: pkg-config is not working properly"
 
 # Create output directory structure
 mkdir -p $out/bin
@@ -123,104 +73,64 @@ mkdir -p $out/templates/${arch}
 mkdir -p $out/templates-debug/${arch}
 mkdir -p $out/tools/${arch}
 
+# Common SCons options
+COMMON_OPTS="platform=linuxbsd \
+  arch=${arch} \
+  ${optionsString} \
+  builtin_freetype=yes \
+  builtin_libpng=yes \
+  builtin_zlib=yes \
+  use_static_cpp=yes \
+  use_lto=no \
+  verbose=yes"
+
 # If we're building for an architecture that can run the editor, build it first
 if [ "${arch}" = "x86_64" ] || [ "${arch}" = "arm64" ] || [ "${arch}" = "x86_32" ] || [ "${arch}" = "arm32" ]; then
-  # Build editor version with buildroot SDK environment
-  editor_build_cmd="${scons}/bin/scons \
-    platform=linuxbsd \
-    arch=${arch} \
-    target=editor \
-    ${optionsString} \
-    builtin_freetype=yes \
-    builtin_libpng=yes \
-    builtin_zlib=yes \
-    use_static_cpp=yes \
-    use_mingw=no \
-    use_lto=no \
-    CC=$CC \
-    CXX=$CXX \
-    AR=${SDK_PREFIX}-ar \
-    PKG_CONFIG=$PKG_CONFIG \
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-    PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
-    PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
+  echo "Building editor for ${arch}..."
   
-  echo "Running: $editor_build_cmd"
-  echo "Using buildroot SDK from: $GODOT_SDK_PATH"
-  echo "Using compiler: $(which $CC)"
-  $editor_build_cmd
+  # Build the editor
+  ${scons}/bin/scons $COMMON_OPTS target=editor
   
-  # Copy editor binaries - fail if not found
-  cp -v bin/* $out/tools/${arch}/
+  # Copy editor binaries
+  mkdir -p $out/tools/${arch}
+  cp -vp bin/* $out/tools/${arch}/
   
   # Clean up before next build
   rm -rf bin
 fi
 
 # Build debug template
-debug_build_cmd="${scons}/bin/scons \
-  platform=linuxbsd \
-  arch=${arch} \
-  target=template_debug \
-  ${optionsString} \
-  builtin_freetype=yes \
-  builtin_libpng=yes \
-  builtin_zlib=yes \
-  use_static_cpp=yes \
-  use_mingw=no \
-  use_lto=no \
-  CC=$CC \
-  CXX=$CXX \
-  AR=${SDK_PREFIX}-ar \
-  PKG_CONFIG=$PKG_CONFIG \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
-  PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
-
-echo "Running debug template build: $debug_build_cmd"
-echo "Using buildroot SDK from: $GODOT_SDK_PATH"
-$debug_build_cmd
+echo "Building debug template for ${arch}..."
+${scons}/bin/scons $COMMON_OPTS target=template_debug
 
 # Copy debug template binaries
-cp -v bin/* $out/templates-debug/${arch}/
+mkdir -p $out/templates-debug/${arch}
+cp -vp bin/* $out/templates-debug/${arch}/
 
 # Clean up before next build
 rm -rf bin
 
-# Build release template 
-release_build_cmd="${scons}/bin/scons \
-  platform=linuxbsd \
-  arch=${arch} \
-  target=template_release \
-  ${optionsString} \
-  builtin_freetype=yes \
-  builtin_libpng=yes \
-  builtin_zlib=yes \
-  use_static_cpp=yes \
-  use_mingw=no \
-  use_lto=no \
-  CC=$CC \
-  CXX=$CXX \
-  AR=${SDK_PREFIX}-ar \
-  PKG_CONFIG=$PKG_CONFIG \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH \
-  PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR \
-  PKG_CONFIG_SYSROOT_DIR=$PKG_CONFIG_SYSROOT_DIR"
-
-echo "Running release template build: $release_build_cmd"
-echo "Using buildroot SDK from: $GODOT_SDK_PATH"
-$release_build_cmd
+# Build release template
+echo "Building release template for ${arch}..."
+${scons}/bin/scons $COMMON_OPTS target=template_release
 
 # Copy release template binaries
-cp -v bin/* $out/templates/${arch}/
+mkdir -p $out/templates/${arch}
+cp -vp bin/* $out/templates/${arch}/
 
 # Copy binaries to bin directory for easy access
 mkdir -p $out/bin/${arch}
-cp -v bin/godot.*.linuxbsd.* $out/bin/${arch}/
+cp -vp bin/godot.*.linuxbsd.* $out/bin/${arch}/ || echo "Note: Editor binary not found for bin directory"
 
 # Print summary of build
 echo "Build completed for Linux (${arch})"
 echo "Files in template directory:"
 ls -la $out/templates/${arch}/
+echo "Files in template-debug directory:"
+ls -la $out/templates-debug/${arch}/
+if [ -d "$out/tools/${arch}" ]; then
+  echo "Files in tools directory:"
+  ls -la $out/tools/${arch}/
+fi
 echo "Files in bin directory:"
-ls -la $out/bin/
+ls -la $out/bin/${arch}/
